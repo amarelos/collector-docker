@@ -1,0 +1,42 @@
+FROM debian:latest
+#
+#
+#
+MAINTAINER "Debian" <collector@amarelos.hc>
+
+# Install packages
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install openssh-server wget build-essential libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev zlib1g-dev nano net-tools unzip p7zip-full curl git libcurl4-openssl-dev make zlib1g-dev gawk g++ gcc libreadline6-dev libssl-dev libyaml-dev liblzma-dev autoconf libgdbm-dev libncurses5-dev automake libtool bison pkg-config ruby ruby-bundler ruby-dev libsqlite3-dev sqlite3 jq
+
+##INSTALAR Cloudsploit e NPM
+RUN git clone https://github.com/aquasecurity/cloudsploit.git && cd cloudsploit && apt install npm && npm install
+##INSTALAR PACU
+RUN git clone https://github.com/RhinoSecurityLabs/pacu.git && cd cd pacu && pip3 install -r requirements.txt
+
+#WPScan - TESTE
+#RUN cd  $user/pentest/web-tools/ && git clone https://github.com/wpscanteam/wpscan.git && cd wpscan/bin && /usr/local/bin wpscan
+
+#Install via Gem Install Nogiri, "HTML, XML, SAX" Reader parser
+RUN gem install nokogiri
+RUN gem install wpscan
+
+ADD set_root_pw.sh /set_root_pw.sh
+ADD run.sh /run.sh
+RUN chmod +x /*.sh
+RUN mkdir -p /var/run/sshd && sed -i "s/UsePrivilegeSeparation.*/UsePrivilegeSeparation no/g" /etc/ssh/sshd_config \
+  && sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
+  && touch /root/.Xauthority \
+  && true
+
+## Set a default user. Available via runtime flag `--user docker`
+## Add user to 'staff' group, granting them write privileges to /usr/local/lib/R/site.library
+## User should also have & own a home directory, but also be able to sudo
+RUN useradd docker \
+        && passwd -d docker \
+        && mkdir /home/docker \
+        && chown docker:docker /home/docker \
+        && addgroup docker staff \
+        && addgroup docker sudo \
+        && true
+RUN /etc/init.d/ssh start
+EXPOSE 22
+CMD ["/run.sh"]
